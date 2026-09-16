@@ -1,0 +1,21 @@
+[project]
+name = "gembridge"
+version = "1.1.0"
+description = "GemBridge - Convert Google Gemini web into OpenAI-compatible API"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.8"
+dependencies = []
+
+[project.optional-dependencies]
+streaming = ["httpx>=0.25"]
+
+[project.scripts]
+gembridge = "gembridge.__main__:main"
+
+[tool.setuptools]
+packages = ["gembridge", "gemini_web2api"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"

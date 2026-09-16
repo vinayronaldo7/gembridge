@@ -1,0 +1,19 @@
+*.egg-info/
+__pycache__/
+*.pyc
+config.json
+cookie.txt
+cookie.json
+.env
+.idea
+.DS_Store
+gemini-auth.json
+.kilo/
+.pytest_cache/
+# Old implementation (superseded by gembridge/ package)
+gemini_web2api/config.py
+gemini_web2api/gemini.py
+gemini_web2api/models.py
+gemini_web2api/multimodal.py
+gemini_web2api/server.py
+gemini_web2api/tools.py
