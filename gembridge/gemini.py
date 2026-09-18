@@ -189,8 +189,40 @@ def _extract_texts_from_line(line: str) -> list:
         return []
 
 
+NO_TEXT_ERROR_MESSAGE = "Gemini upstream returned no text content"
+
+
+def _is_no_text_error(e: Exception) -> bool:
+    """Return True when *e* is the specific upstream no-text RuntimeError.
+
+    This is the only RuntimeError that GemBridge retries at the application
+    level.  Auth failures (BardErrorInfo), malformed configs, programming
+    errors and connection failures are deliberately excluded so the existing
+    general retry behaviour is preserved for those cases.
+    """
+    return isinstance(e, RuntimeError) and str(e) == NO_TEXT_ERROR_MESSAGE
+
+
+def _no_text_delay(attempt: int) -> float:
+    """Exponential backoff for no-text retries.
+
+    Uses the dedicated no-text budget and base delay.  General connection
+    retries keep using retry_delay_sec unchanged; this helper exists only
+    for the no-text path so the two policies can diverge without touching
+    each other.
+    """
+    base = CONFIG.get("retry_delay_sec", 2) or 0
+    return base * (2 ** attempt)
+
+
 def extract_response_text(raw: str) -> str:
-    """Parse full response to get final text."""
+    """Parse full response to get final text.
+
+    Raises RuntimeError when the upstream Gemini response contains no
+    extractable text (e.g. only metadata-only wrb.fr lines). This prevents a
+    silent empty-string return from propagating as a successful HTTP 200 with
+    content:null to OpenAI-compatible clients.
+    """
     bard_err = re.search(r'BardErrorInfo\s*\[(\d+)\]', raw)
     if bard_err:
         raise RuntimeError(f"Gemini upstream rejected request: BardErrorInfo [{bard_err.group(1)}]")
@@ -199,6 +231,8 @@ def extract_response_text(raw: str) -> str:
         for t in _extract_texts_from_line(line):
             if len(t) > len(last_text):
                 last_text = t
+    if not last_text:
+        raise RuntimeError(NO_TEXT_ERROR_MESSAGE)
     return clean_text(last_text)
 
 
@@ -211,7 +245,8 @@ def generate(prompt: str, model_id: int, think_mode: int, file_refs: list = None
     proxy = CONFIG.get("proxy")
 
     last_err = None
-    for attempt in range(CONFIG["retry_attempts"]):
+    no_text_budget = CONFIG.get("max_no_text_retries", CONFIG["retry_attempts"])
+    for attempt in range(no_text_budget):
         try:
             req = urllib.request.Request(url, data=body, headers=headers, method="POST")
             if proxy:
@@ -226,9 +261,13 @@ def generate(prompt: str, model_id: int, think_mode: int, file_refs: list = None
             return extract_response_text(raw)
         except Exception as e:
             last_err = e
-            if attempt < CONFIG["retry_attempts"] - 1:
-                log(f"Retry {attempt+1}/{CONFIG['retry_attempts']}: {e}")
-                time.sleep(CONFIG["retry_delay_sec"])
+            if not _is_no_text_error(e):
+                raise
+            if attempt < no_text_budget - 1:
+                delay = _no_text_delay(attempt)
+                log(f"Upstream returned no text content, retrying "
+                    f"{attempt+1}/{no_text_budget} after {delay:.1f}s: {e}")
+                time.sleep(delay)
     raise last_err
 
 
@@ -246,8 +285,9 @@ def generate_stream(prompt: str, model_id: int, think_mode: int, file_refs: list
     client = _get_httpx_client()
 
     last_err = None
-    emitted_raw_text = ""
-    for attempt in range(CONFIG["retry_attempts"]):
+    no_text_budget = CONFIG.get("max_no_text_retries", CONFIG["retry_attempts"])
+    for attempt in range(no_text_budget):
+        emitted_raw_text = ""
         try:
             with client.stream("POST", url, content=body, headers=headers) as resp:
                 resp.raise_for_status()
@@ -271,10 +311,16 @@ def generate_stream(prompt: str, model_id: int, think_mode: int, file_refs: list
                             emitted_raw_text = t
                             if delta:
                                 yield delta
+            if not emitted_raw_text:
+                raise RuntimeError(NO_TEXT_ERROR_MESSAGE)
             return
         except Exception as e:
             last_err = e
-            if attempt < CONFIG["retry_attempts"] - 1:
-                log(f"Stream retry {attempt+1}/{CONFIG['retry_attempts']}: {e}")
-                time.sleep(CONFIG["retry_delay_sec"])
+            if not _is_no_text_error(e):
+                raise
+            if attempt < no_text_budget - 1:
+                delay = _no_text_delay(attempt)
+                log(f"Upstream stream returned no text content, retrying "
+                    f"{attempt+1}/{no_text_budget} after {delay:.1f}s: {e}")
+                time.sleep(delay)
     raise last_err

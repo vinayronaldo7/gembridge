@@ -229,6 +229,18 @@ class GeminiHandler(BaseHTTPRequestHandler):
                 pass
             except Exception as e:
                 log(f"Stream error: {e}")
+                try:
+                    err_chunk = {
+                        "id": cid,
+                        "object": "chat.completion.chunk",
+                        "created": int(time.time()),
+                        "model": model_name,
+                        "error": {"message": f"upstream error: {e}", "type": "upstream_error"},
+                    }
+                    self.wfile.write(f"data: {json.dumps(err_chunk, ensure_ascii=False)}\n\n".encode())
+                    self.wfile.flush()
+                except (BrokenPipeError, ConnectionResetError):
+                    pass
             return
 
         try:
@@ -543,6 +555,18 @@ class GeminiHandler(BaseHTTPRequestHandler):
                 pass
             except Exception as e:
                 log(f"Google stream error: {e}")
+                try:
+                    err_chunk = {
+                        "error": {
+                            "message": f"upstream error: {e}",
+                            "type": "upstream_error",
+                        },
+                        "modelVersion": model_name,
+                    }
+                    self.wfile.write(f"data: {json.dumps(err_chunk, ensure_ascii=False)}\n\n".encode())
+                    self.wfile.flush()
+                except (BrokenPipeError, ConnectionResetError):
+                    pass
             return
 
         try:
