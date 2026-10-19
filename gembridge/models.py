@@ -4,6 +4,12 @@
 #   1=FAST, 2=THINKING, 3=PRO, 4=AUTO, 5=FAST_DYNAMIC_THINKING, 6=FLASH_LITE
 
 MODELS = {
+    # ── Gemini 4 Frontier ───────────────────────────────────────────────────
+    "gemini-4-argon": {
+        "mode": 3, "think": 4,
+        "desc": "Gemini 4 Argon: Frontier multimodal code generation & fallback reasoning",
+    },
+
     # ── Gemini 3.x Flagship & Pro ────────────────────────────────────────────
     "gemini-3.1-pro": {
         "mode": 3, "think": 4,
@@ -79,6 +85,8 @@ MODELS = {
 
 # Convenience aliases: short names -> canonical model IDs
 MODEL_ALIASES = {
+    "gemini-argon": "gemini-4-argon",
+    "argon": "gemini-4-argon",
     "gemini-pro": "gemini-3.1-pro",
     "gemini-flash": "gemini-3.8-flash",
     "gemini-ultra": "gemini-3.1-ultra",

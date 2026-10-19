@@ -127,6 +127,9 @@ class GeminiHandler(BaseHTTPRequestHandler):
             if self.path.startswith("/v1") and not self._authorized():
                 self.send_json({"error": {"message": "invalid api key"}}, 401)
                 return
+            if self.path == "/health":
+                self.send_json({"service": "gembridge", "version": "1.2.0", "status": "healthy"}, 200)
+                return
             if self.path == "/v1/models":
                 self.send_json({"object": "list", "data": get_openai_model_list()})
             elif self.path.startswith("/v1beta/models"):

@@ -147,3 +147,4 @@ def run_static_anti_scraping_audit(root_dir: str) -> Tuple[bool, List[str]]:
                 violations.append(f"{file_path}: Error reading file: {e}")
 
     return (len(violations) == 0, violations)
+

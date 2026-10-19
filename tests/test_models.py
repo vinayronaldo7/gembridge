@@ -13,6 +13,12 @@ from gembridge.server import GeminiHandler, ThreadedServer
 class ModelRegistryTests(unittest.TestCase):
     """Unit tests for model registry contents."""
 
+    def test_gemini_4_argon_in_registry(self):
+        """gemini-4-argon must be registered as frontier model."""
+        self.assertIn("gemini-4-argon", MODELS)
+        self.assertEqual(MODELS["gemini-4-argon"]["mode"], 3)
+        self.assertIn("Argon", MODELS["gemini-4-argon"]["desc"])
+
     def test_gemini_3_1_pro_in_registry(self):
         """gemini-3.1-pro must be registered."""
         self.assertIn("gemini-3.1-pro", MODELS)
@@ -55,6 +61,14 @@ class ModelRegistryTests(unittest.TestCase):
 
 class ModelAliasTests(unittest.TestCase):
     """Tests for model alias resolution."""
+
+    def test_gemini_argon_alias(self):
+        """gemini-argon and argon should resolve to gemini-4-argon."""
+        self.assertEqual(MODEL_ALIASES["gemini-argon"], "gemini-4-argon")
+        self.assertEqual(MODEL_ALIASES["argon"], "gemini-4-argon")
+        name, mode, think, error, extra = resolve_model("gemini-argon")
+        self.assertEqual(name, "gemini-4-argon")
+        self.assertEqual(mode, 3)
 
     def test_gemini_pro_alias(self):
         """gemini-pro should resolve to gemini-3.1-pro."""
@@ -185,3 +199,4 @@ class ModelEndpointTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

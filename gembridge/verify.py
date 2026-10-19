@@ -275,3 +275,4 @@ def run_inprocess_verification(port: int = 8089) -> bool:
 if __name__ == "__main__":
     success = run_inprocess_verification()
     sys.exit(0 if success else 1)
+

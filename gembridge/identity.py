@@ -96,3 +96,4 @@ def format_whoami_text() -> str:
         "==================================================",
     ]
     return "\n".join(lines)
+
